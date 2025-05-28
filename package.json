@@ -1,0 +1,22 @@
+{
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "exceljs": "^4.4.0",
+    "fs": "^0.0.1-security",
+    "json2csv": "^6.0.0-alpha.2",
+    "nodemailer": "^7.0.3",
+    "pdf-poppler": "^0.2.1",
+    "together-ai": "^0.16.0"
+  },
+  "name": "extraction",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "description": ""
+}
