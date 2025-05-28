@@ -1,65 +1,59 @@
 import Together from "together-ai";
-import { config } from "dotenv";
 import fs from "fs";
-
-config();
-
-
+import { config } from "dotenv";
+config(); // Load environment variables from .env file
+const togetherApiKey = process.env.TOGETHER_API_KEY;
+if (!togetherApiKey) {
+    throw new Error("TOGETHER_API_KEY is not set in the environment variables.");
+}
 export default async function ocr({
     filePath,
-    apiKey = process.env.TOGETHER_API_KEY,
-    model = "Llama-3.2-90B-Vision"
+    model = "Llama-3.2-90B-Vision",
 }) {
-    const visionLLM =
-        model === "free"
-            ? "meta-llama/Llama-Vision-Free"
-            : `meta-llama/${model}-Instruct-Turbo`;
+    const visionLLM = model === "free" ? "meta-llama/Llama-Vision-Free" : `meta-llama/${model}-Instruct-Turbo`;
 
-    const together = new Together({ apiKey });
+    const together = new Together({ togetherApiKey });
 
-    const extractedJSON = await getQuestionsJSON({ together, visionLLM, filePath });
-    return extractedJSON;
-}
+    const systemPrompt = `Convert the provided image into Markdown format. Ensure that all content from the page is included, such as headers, footers, subtexts, images (with alt text if possible), tables, and any other elements.
 
-async function getQuestionsJSON({ together, visionLLM, filePath }) {
-    const systemPrompt = `Extract all multiple-choice questions from the image and convert them into a structured JSON format. Each item must include a "question" and an array of "options".
+  Requirements:
 
-Rules:
-- Only return valid multiple-choice questions.
-- Do NOT include explanations, instructions, or any other text.
-- The final output must be a valid JSON object like:
-{
-  "questions": [
-    {
-      "question": "What is the capital of France?",
-      "options": ["Paris", "Berlin", "London", "Rome"]
-    }
-  ]
-}
-- Return only the JSON. No comments, markdown, or extra content.
-`;
+  - Output Only Markdown: Return solely the Markdown content without any additional explanations or comments.
+  - No Delimiters: Do not use code fences or delimiters like \`\`\`markdown.
+  - Complete Content: Do not omit any part of the page, including headers, footers, and subtext.
+  `;
+
 
     const finalImageUrl = isRemoteFile(filePath)
         ? filePath
         : `data:image/jpeg;base64,${encodeImage(filePath)}`;
 
-    const output = await together.chat.completions.create({
-        model: visionLLM,
-        messages: [
-            {
-                role: "user",
-                content: [
-                    { type: "text", text: systemPrompt },
-                    {
-                        type: "image_url",
-                        image_url: { url: finalImageUrl },
-                    },
-                ],
-            },
-        ],
-    });
+    try {
+        const response = await together.chat.completions.create({
+            model: visionLLM,
+            messages: [
+                {
+                    role: "system",
+                    content: systemPrompt.trim(),
+                },
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", text: systemPrompt.trim() },
+                        { type: "image_url", image_url: { url: finalImageUrl } },
+                    ],
+                },
+            ],
+        });
 
-    return output.choices[0].message.content;
+        const output = response.choices[0].message.content;
+        // Optional: Log output for debugging
+        // console.log("OCR Output:", output);
+        return output;
+    } catch (error) {
+        console.error("Error fetching OCR:", error);
+        throw error;
+    }
 }
 
 function encodeImage(imagePath) {
